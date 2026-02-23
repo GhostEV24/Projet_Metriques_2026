@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Dashboard Reykjavik</title>
+
+<script src="https://www.gstatic.com/charts/loader.js"></script>
+
+<style>
+body {
+    font-family: Arial, sans-serif;
+    margin: 40px;
+    background: linear-gradient(to right, #1e3c72, #2a5298);
+    color: white;
+}
+
+h1 {
+    text-align: center;
+}
+
+#chart {
+    width: 100%;
+    height: 600px;
+    margin-top: 30px;
+}
+
+#status {
+    margin-top: 15px;
+    text-align: center;
+}
+</style>
+</head>
+
+<body>
+
+<h1>🌍 Reykjavik — Température & Vent</h1>
+<div id="chart"></div>
+<div id="status"></div>
+
+<script>
+google.charts.load('current', { packages: ['corechart'] });
+google.charts.setOnLoadCallback(init);
+
+async function init() {
+    try {
+        const rows = await fetchData();
+        drawChart(rows);
+    } catch (err) {
+        document.getElementById("status").innerText = "Erreur : " + err;
+    }
+}
+
+async function fetchData() {
+    const res = await fetch('/atelier-data');
+    const json = await res.json();
+
+    const rows = json.map(p => {
+        const [datePart, timePart] = p.datetime.split('T');
+        const [y, m, d] = datePart.split('-').map(Number);
+        const [hh, mm] = timePart.split(':').map(Number);
+        const dt = new Date(y, m - 1, d, hh, mm);
+
+        return [dt, Number(p.temperature), Number(p.wind)];
+    });
+
+    rows.sort((a, b) => a[0] - b[0]);
+    return rows;
+}
+
+function drawChart(rows) {
+
+    const data = new google.visualization.DataTable();
+    data.addColumn('datetime', 'Date');
+    data.addColumn('number', 'Température (°C)');
+    data.addColumn('number', 'Vent (km/h)');
+    data.addRows(rows);
+
+    const options = {
+        title: 'Température & Vitesse du Vent',
+        seriesType: 'bars',
+        series: {
+            1: { type: 'line' } // Le vent devient une ligne
+        },
+        legend: { position: 'bottom' },
+        backgroundColor: 'transparent',
+        hAxis: {
+            format: 'dd/MM HH:mm',
+            textStyle: { color: 'white' }
+        },
+        vAxis: {
+            textStyle: { color: 'white' }
+        }
+    };
+
+    const chart = new google.visualization.ComboChart(
+        document.getElementById('chart')
+    );
+
+    chart.draw(data, options);
+
+    document.getElementById("status").innerText =
+        "✔ Données Reykjavik chargées avec succès";
+}
+</script>
+
+</body>
+</html>
